@@ -1,0 +1,15 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 120" width="300" height="120">
+  <!-- Glasses frames -->
+  <g fill="none" stroke="#0B3C68" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 30,52 Q 45,35 68,48" />
+    <circle cx="95" cy="55" r="32" fill="#FFFFFF" stroke="#0B3C68" stroke-width="5" />
+    <path d="M 127,50 Q 150,42 173,50" stroke="#0B3C68" stroke-width="5" fill="none" />
+    <circle cx="205" cy="55" r="32" fill="#FFFFFF" stroke="#0B3C68" stroke-width="5" />
+    <path d="M 237,48 Q 255,35 270,52" />
+  </g>
+  <!-- Text inside lenses -->
+  <text x="95" y="61" font-family="'Noto Sans Devanagari', Arial, sans-serif" font-size="19" font-weight="900" fill="#0B3C68" text-anchor="middle">स्वच्छ</text>
+  <text x="205" y="61" font-family="'Noto Sans Devanagari', Arial, sans-serif" font-size="19" font-weight="900" fill="#0B3C68" text-anchor="middle">भारत</text>
+  <!-- Tagline underneath -->
+  <text x="150" y="104" font-family="'Noto Sans Devanagari', Arial, sans-serif" font-size="13" font-weight="800" fill="#138808" text-anchor="middle" letter-spacing="0.5">एक कदम स्वच्छता की ओर</text>
+</svg>
