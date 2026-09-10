@@ -33,6 +33,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { CONSTITUENCY_REGIONS, useRole } from '../context/RoleContext';
+import { useRealtime } from '../context/RealtimeContext';
+import { Zap, Radio } from 'lucide-react';
 
 const getTollPlazaByRegion = (state: string, code?: string) => {
   if (state === 'Telangana' || code === 'TG-SEC' || code === 'TG-HYD') {
@@ -176,7 +178,18 @@ export const ProjectRiskProfile: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { activeRegion } = useRole();
+  const { latestUpdatedWorks, liveEvents, triggerLiveTick, setIsDrawerOpen } = useRealtime();
   const [work, setWork] = useState<any>(null);
+  const [isSimulating, setIsSimulating] = useState(false);
+
+  const handleSimulateTick = async () => {
+    setIsSimulating(true);
+    try {
+      await triggerLiveTick();
+    } finally {
+      setIsSimulating(false);
+    }
+  };
   
   useEffect(() => {
     let isMounted = true;
@@ -283,8 +296,60 @@ export const ProjectRiskProfile: React.FC = () => {
   const safeWorkId = work.work_id || id || 'MPLADS-PROJECT';
   const charSeed = safeWorkId.charCodeAt(0) || 65;
 
+  const liveUpdate = latestUpdatedWorks.get(safeWorkId);
+  const currentPhysical = liveUpdate ? liveUpdate.physical_progress : (work.physical_progress ?? 72.0);
+  const currentFinancial = liveUpdate ? liveUpdate.financial_progress : (work.financial_progress ?? 75.0);
+  const currentExpenditure = liveUpdate ? liveUpdate.actual_expenditure : (work.actual_expenditure ?? 6375000);
+  const currentStatus = liveUpdate ? liveUpdate.status : (work.status || 'IN_PROGRESS');
+
+  const relevantEvents = liveEvents.filter(e => 
+    e.work_id === safeWorkId || 
+    (e.district && work.district && work.district.includes(e.district))
+  );
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-slide-up pb-12">
+      {/* Live Real-time Sentinel Sensor Bar */}
+      <div className="bg-slate-950 text-white rounded-2xl p-4 sm:p-5 border border-slate-800 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+            <Radio size={20} className="animate-pulse" />
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black tracking-tight text-white uppercase">
+                Continuous Telemetry Stream Active
+              </span>
+              <span className="px-2 py-0.2 rounded-full text-[9px] font-black bg-emerald-400/20 text-emerald-300 border border-emerald-400/40">
+                LIVE SYNC
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              ISRO Bhuvan sub-meter satellite passes, NHAI FASTag plazas, and PFMS central ledger live streaming.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 shrink-0">
+          <button
+            onClick={handleSimulateTick}
+            disabled={isSimulating}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition-all cursor-pointer shadow-md disabled:opacity-50"
+            title="Trigger an immediate simulation packet for this work"
+          >
+            <Zap size={14} className={isSimulating ? 'animate-spin' : 'fill-slate-950'} />
+            <span>{isSimulating ? 'Simulating...' : '⚡ Force Live Event'}</span>
+          </button>
+          <button
+            onClick={() => setIsDrawerOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all cursor-pointer shadow-md"
+          >
+            <span>Radar Stream</span>
+          </button>
+        </div>
+      </div>
+
       {/* Top Breadcrumb & Actions */}
       <div className="flex items-start gap-4">
         <button 
@@ -298,8 +363,13 @@ export const ProjectRiskProfile: React.FC = () => {
           <div className="flex items-center gap-3 mb-2">
             <span className="text-xs font-mono font-bold text-slate-500 tracking-widest">{safeWorkId}</span>
             <Badge variant="outline" className="text-xs uppercase font-bold text-slate-700 bg-white border-slate-300 px-2 py-0.5">
-              {work.status || 'IN_PROGRESS'}
+              {currentStatus}
             </Badge>
+            {liveUpdate && (
+              <span className="px-2 py-0.5 rounded text-[10px] font-black bg-emerald-600 text-white animate-pulse">
+                ⚡ UPDATED IN REALTIME
+              </span>
+            )}
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">{work.work_name}</h2>
           <div className="flex flex-wrap items-center gap-3 sm:gap-6 mt-4 text-xs font-medium text-slate-600">
@@ -313,6 +383,45 @@ export const ProjectRiskProfile: React.FC = () => {
               <Calendar size={15} className="text-blue-600"/> {work.start_date || '2024-02-15'}
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* Live Physical vs Financial Dual-Meter Ribbon */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <Activity size={14} className="text-blue-600" /> Physical Execution Milestone
+            </span>
+            <span className="text-sm font-black text-slate-900">{currentPhysical}%</span>
+          </div>
+          <div className="w-full bg-slate-200 h-3 rounded-full overflow-hidden">
+            <div 
+              className="bg-blue-600 h-full rounded-full transition-all duration-700" 
+              style={{ width: `${Math.min(100, currentPhysical)}%` }}
+            ></div>
+          </div>
+          <p className="text-[10px] text-slate-500 mt-2">
+            Ground verification calibrated with ISRO Bhuvan optical NDVI change detection.
+          </p>
+        </div>
+
+        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <ShieldCheck size={14} className="text-emerald-600" /> PFMS Treasury Disbursal
+            </span>
+            <span className="text-sm font-black text-emerald-700">{currentFinancial}%</span>
+          </div>
+          <div className="w-full bg-slate-200 h-3 rounded-full overflow-hidden">
+            <div 
+              className="bg-emerald-600 h-full rounded-full transition-all duration-700" 
+              style={{ width: `${Math.min(100, currentFinancial)}%` }}
+            ></div>
+          </div>
+          <p className="text-[10px] text-slate-500 mt-2">
+            Disbursed: ₹{(currentExpenditure / 100000).toFixed(2)} Lakhs of ₹{((work.sanctioned_amount || 8500000) / 100000).toFixed(2)} Lakhs sanctioned.
+          </p>
         </div>
       </div>
 

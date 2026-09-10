@@ -31,6 +31,8 @@ import {
   Award
 } from 'lucide-react';
 import { useRole, type ConstituencyRegion } from '../../context/RoleContext';
+import { useRealtime } from '../../context/RealtimeContext';
+import { Zap, Radio } from 'lucide-react';
 
 interface MPWork {
   id: string;
@@ -799,9 +801,22 @@ export const MPDashboard: React.FC = () => {
 
   // Mode: Toggle between Constituency Development Hub and Pan-India National Scheme Oversight
   const [viewScope, setViewScope] = useState<'CONSTITUENCY' | 'NATIONAL'>('CONSTITUENCY');
+  const { latestUpdatedWorks, triggerLiveTick, setIsDrawerOpen, liveEvents } = useRealtime();
 
   // Works state per active region
   const [works, setWorks] = useState<MPWork[]>(() => getOrGenerateRegionWorks(activeRegion));
+  const [isSimulating, setIsSimulating] = useState(false);
+
+  const handleSimulate = async () => {
+    setIsSimulating(true);
+    try {
+      await triggerLiveTick();
+      setSuccessToast("Simulated realtime telemetry packet delivered to constituency tracker.");
+      setTimeout(() => setSuccessToast(null), 4000);
+    } finally {
+      setIsSimulating(false);
+    }
+  };
   const [recommendModal, setRecommendModal] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
@@ -819,6 +834,29 @@ export const MPDashboard: React.FC = () => {
     setWorks(getOrGenerateRegionWorks(activeRegion));
     setNewSegment(activeRegion.segments[0] || 'Central');
   }, [activeRegion.id]);
+
+  // Synchronize realtime updates for constituency works
+  useEffect(() => {
+    if (latestUpdatedWorks.size > 0) {
+      setWorks(prev => {
+        let changed = false;
+        const updated = prev.map(w => {
+          const live = latestUpdatedWorks.get(w.code) || 
+            Array.from(latestUpdatedWorks.values()).find(u => u.work_id.includes(w.code) || w.code.includes(u.work_id));
+          if (live) {
+            changed = true;
+            return {
+              ...w,
+              progress: Math.round(live.physical_progress),
+              status: (live.status === 'COMPLETED' ? 'COMPLETED' : 'ONGOING') as 'COMPLETED' | 'ONGOING'
+            };
+          }
+          return w;
+        });
+        return changed ? updated : prev;
+      });
+    }
+  }, [latestUpdatedWorks]);
 
   // Compute live entitlement numbers
   const totalEntitlementCr = 5.0; // ₹5.00 Cr statutory annual pool
@@ -867,6 +905,42 @@ export const MPDashboard: React.FC = () => {
           <span className="text-xs font-bold">{successToast}</span>
         </div>
       )}
+
+      {/* Live Real-time Constituency Sentinel Pill */}
+      <div className="bg-slate-950 text-white rounded-2xl p-3.5 px-5 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+        <div className="flex items-center gap-2.5">
+          <div className="relative flex items-center justify-center w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+            <Radio size={14} className="animate-pulse" />
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black tracking-wide text-white uppercase">
+              {activeRegion.name} Live Vigilance Stream Active
+            </span>
+            <span className="px-1.5 py-0.2 rounded text-[8.5px] font-black bg-emerald-400/20 text-emerald-300 border border-emerald-400/40">
+              REALTIME
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSimulate}
+            disabled={isSimulating}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition-all cursor-pointer shadow-xs disabled:opacity-50"
+            title="Generate a live simulated milestone update"
+          >
+            <Zap size={12} className={isSimulating ? 'animate-spin' : 'fill-slate-950'} />
+            <span>{isSimulating ? 'Updating...' : '⚡ Force Live Event'}</span>
+          </button>
+          <button
+            onClick={() => setIsDrawerOpen(true)}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all cursor-pointer"
+          >
+            <span>Radar Stream</span>
+          </button>
+        </div>
+      </div>
 
       {/* DUAL ACCESS CONTROLLER: CONSTITUENCY VS PAN-INDIA NATIONAL DATA */}
       <div className="bg-white border-2 border-emerald-700/30 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">

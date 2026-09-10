@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { RoleProvider } from './context/RoleContext';
+import { RealtimeProvider } from './context/RealtimeContext';
 import { Layout } from './components/Layout';
 import { NationalDashboard } from './pages/NationalDashboard';
 import { ProjectExplorer } from './pages/ProjectExplorer';
@@ -23,23 +24,25 @@ function App() {
   return (
     <BrowserRouter>
       <RoleProvider>
-        <Routes>
-          <Route path="/landing" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          
-          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-            <Route index element={<NationalDashboard />} />
-            <Route path="states" element={<StatesOverview />} />
-            <Route path="projects" element={<ProjectExplorer />} />
-            <Route path="projects/:id" element={<ProjectRiskProfile />} />
-            <Route path="alerts" element={<AlertCenter />} />
-            <Route path="risk" element={<RiskIntelligence />} />
-            <Route path="graph" element={<GraphIntelligence />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="*" element={<div className="p-12 text-center text-slate-500 text-lg">Screen pending implementation</div>} />
-          </Route>
-        </Routes>
+        <RealtimeProvider>
+          <Routes>
+            <Route path="/landing" element={<LandingPage />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            
+            <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+              <Route index element={<NationalDashboard />} />
+              <Route path="states" element={<StatesOverview />} />
+              <Route path="projects" element={<ProjectExplorer />} />
+              <Route path="projects/:id" element={<ProjectRiskProfile />} />
+              <Route path="alerts" element={<AlertCenter />} />
+              <Route path="risk" element={<RiskIntelligence />} />
+              <Route path="graph" element={<GraphIntelligence />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="*" element={<div className="p-12 text-center text-slate-500 text-lg">Screen pending implementation</div>} />
+            </Route>
+          </Routes>
+        </RealtimeProvider>
       </RoleProvider>
     </BrowserRouter>
   );

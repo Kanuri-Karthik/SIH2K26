@@ -24,9 +24,14 @@ import {
   Mic, 
   Satellite, 
   Globe,
-  MapPin
+  MapPin,
+  Radio,
+  Zap
 } from 'lucide-react';
 import { useRole, OFFICER_PROFILES, OFFICER_ROLES, getBaseOfficerProfiles, type OfficerRole } from '../context/RoleContext';
+import { useRealtime } from '../context/RealtimeContext';
+import { LiveTelemetryDrawer } from './LiveTelemetryDrawer';
+import { LiveTickerPill } from './LiveTickerPill';
 import { JanDrishtiLogo } from './JanDrishtiLogo';
 
 const Sidebar = () => {
@@ -170,6 +175,7 @@ const Topbar = () => {
     switchRole, 
     switchRegion 
   } = useRole();
+  const { connectionMode, unreadAlertsCount, setIsDrawerOpen } = useRealtime();
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [showRegionDropdown, setShowRegionDropdown] = useState(false);
   
@@ -496,6 +502,46 @@ const Topbar = () => {
           )}
         </div>
 
+        {/* Real-time Telemetry Live Radar Badge */}
+        <button 
+          onClick={() => setIsDrawerOpen(true)}
+          className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border border-emerald-500/40 bg-emerald-50/90 hover:bg-emerald-100 text-emerald-950 transition-all shadow-2xs hover:shadow-xs cursor-pointer group shrink-0"
+          title="Open Jan-Drishti Real-Time Vigilance Radar & Telemetry Stream"
+        >
+          <div className="relative flex items-center justify-center">
+            <Radio size={14} className="text-emerald-700 animate-pulse" />
+            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          </div>
+          <div className="text-left hidden sm:block">
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] font-black tracking-tight leading-none text-emerald-950">LIVE RADAR</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            </div>
+            <span className="text-[8px] font-bold text-emerald-700 block leading-tight">
+              {connectionMode === 'websocket' ? 'WebSocket Active' : connectionMode === 'polling' ? 'Stream Polling' : 'Connecting...'}
+            </span>
+          </div>
+          {unreadAlertsCount > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-red-600 text-white animate-bounce">
+              {unreadAlertsCount}
+            </span>
+          )}
+        </button>
+
+        {/* Real-time Alert Center Bell */}
+        <Link 
+          to="/alerts"
+          className="relative p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:border-amber-400 text-slate-600 transition-all shadow-2xs shrink-0 cursor-pointer"
+          title="Alert Center & Anomaly Triage Queue"
+        >
+          <Bell size={16} />
+          {unreadAlertsCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-600 text-white text-[9px] font-black flex items-center justify-center">
+              {unreadAlertsCount > 9 ? '9+' : unreadAlertsCount}
+            </span>
+          )}
+        </Link>
+
         {/* Public Portal Link */}
         <Link 
           to="/landing" 
@@ -679,26 +725,32 @@ const AICopilot = () => {
     </>
   );
 };
-export const Layout = () => (
-  <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden selection:bg-blue-100 selection:text-blue-900">
-    {/* Sovereign Tiranga Ribbon */}
-    <div className="h-1 w-full flex shrink-0 z-30 shadow-xs">
-      <div className="flex-1 bg-[#FF9933]"></div>
-      <div className="flex-1 bg-white relative flex items-center justify-center">
-        <div className="w-1.5 h-1.5 rounded-full bg-[#000080]"></div>
-      </div>
-      <div className="flex-1 bg-[#138808]"></div>
-    </div>
+export const Layout = () => {
+  const { setIsDrawerOpen } = useRealtime();
 
-    <div className="flex flex-1 overflow-hidden">
-      <Sidebar />
-      <main className="flex-1 flex flex-col h-full relative overflow-hidden">
-        <Topbar />
-        <div className="flex-1 overflow-y-auto p-10">
-          <Outlet />
+  return (
+    <div className="flex flex-col h-screen bg-[#F8FAFC] overflow-hidden selection:bg-blue-100 selection:text-blue-900">
+      {/* Sovereign Tiranga Ribbon */}
+      <div className="h-1 w-full flex shrink-0 z-30 shadow-xs">
+        <div className="flex-1 bg-[#FF9933]"></div>
+        <div className="flex-1 bg-white relative flex items-center justify-center">
+          <div className="w-1.5 h-1.5 rounded-full bg-[#000080]"></div>
         </div>
-        <AICopilot />
-      </main>
+        <div className="flex-1 bg-[#138808]"></div>
+      </div>
+
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar />
+        <main className="flex-1 flex flex-col h-full relative overflow-hidden">
+          <Topbar />
+          <div className="flex-1 overflow-y-auto p-10">
+            <Outlet />
+          </div>
+          <AICopilot />
+          <LiveTickerPill onOpenDrawer={() => setIsDrawerOpen(true)} />
+          <LiveTelemetryDrawer />
+        </main>
+      </div>
     </div>
-  </div>
-);
+  );
+};

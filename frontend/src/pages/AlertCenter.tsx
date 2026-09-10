@@ -1,18 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '../components/ui/card';
-import { AlertTriangle, ShieldAlert, CheckCircle2, Search, Filter, RefreshCw, ArrowUpRight, Lock, Globe } from 'lucide-react';
+import { AlertTriangle, ShieldAlert, CheckCircle2, Search, Filter, RefreshCw, ArrowUpRight, Lock, Globe, Zap, Radio } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useRole } from '../context/RoleContext';
+import { useRealtime } from '../context/RealtimeContext';
 
 export const AlertCenter = () => {
   const { currentRole, currentProfile, activeRegion } = useRole();
+  const { triggerLiveTick, setIsDrawerOpen, liveEvents, unreadAlertsCount } = useRealtime();
   const [alerts, setAlerts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isTriggering, setIsTriggering] = useState(false);
   const navigate = useNavigate();
 
   const isDM = currentRole === 'district_magistrate';
   const isMP = currentRole === 'member_parliament';
+
+  const handleSimulateAlert = async () => {
+    setIsTriggering(true);
+    try {
+      await triggerLiveTick();
+      fetchAlerts();
+    } finally {
+      setIsTriggering(false);
+    }
+  };
 
   const fetchAlerts = () => {
     fetch('http://localhost:8000/api/alerts')
@@ -38,6 +51,13 @@ export const AlertCenter = () => {
     const interval = setInterval(fetchAlerts, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  // When a live alert triggers, immediately pull latest alerts
+  useEffect(() => {
+    if (liveEvents.length > 0 && liveEvents[0].type === 'ALERT_TRIGGER') {
+      fetchAlerts();
+    }
+  }, [liveEvents]);
 
   const filteredAlerts = alerts.filter(a => {
     const matchesSearch = !searchTerm || 
@@ -86,12 +106,31 @@ export const AlertCenter = () => {
               : 'Real-time triage queue for AI-detected anomalies, procurement bid rigging, and critical execution risks.'}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl text-xs font-bold border border-emerald-200">
              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
              Live Queue Active
           </div>
-          <div className="relative w-64">
+
+          <button
+            onClick={handleSimulateAlert}
+            disabled={isTriggering}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+            title="Trigger an immediate simulation packet for alerts"
+          >
+            <Zap size={13} className={isTriggering ? 'animate-spin' : 'fill-slate-950'} />
+            <span>{isTriggering ? 'Simulating...' : '⚡ Force Live Anomaly'}</span>
+          </button>
+
+          <button
+            onClick={() => setIsDrawerOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all cursor-pointer shadow-2xs"
+          >
+            <Radio size={13} className="text-emerald-400 animate-pulse" />
+            <span>Radar Stream</span>
+          </button>
+
+          <div className="relative w-56 sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input 
               type="text" 

@@ -16,7 +16,7 @@ def get_dashboard_overview(db: Session = Depends(get_db)):
     
     utilization_rate = (total_expenditure / total_allocation * 100) if total_allocation > 0 else 0
     
-    active_works = db.query(models.Work).filter(models.Work.status == "ONGOING").count()
+    active_works = db.query(models.Work).filter(models.Work.status.in_(["IN_PROGRESS", "ONGOING"])).count()
     completed_works = db.query(models.Work).filter(models.Work.status == "COMPLETED").count()
     delayed_works = db.query(models.Work).filter(models.Work.status == "DELAYED").count()
     

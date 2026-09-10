@@ -25,9 +25,16 @@ import {
   Printer, 
   ArrowUpRight,
   TrendingUp,
-  Building
+  Building,
+  Truck,
+  Satellite,
+  Zap,
+  Clock,
+  ExternalLink
 } from 'lucide-react';
 import { useRole } from '../../context/RoleContext';
+import { useRealtime } from '../../context/RealtimeContext';
+import { Link } from 'react-router-dom';
 
 interface StateRow {
   state: string;
@@ -61,9 +68,22 @@ const TREND_DATA = [
 
 export const MoSPIDashboard: React.FC = () => {
   const { currentProfile } = useRole();
+  const { overviewStats, liveEvents, triggerLiveTick, setIsDrawerOpen, isConnected } = useRealtime();
   const [states, setStates] = useState<StateRow[]>(INITIAL_STATES);
   const [broadcastModal, setBroadcastModal] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [isTriggering, setIsTriggering] = useState(false);
+
+  const handleSimulate = async () => {
+    setIsTriggering(true);
+    try {
+      await triggerLiveTick();
+      setSuccessToast("Simulated live telemetry event successfully transmitted to PFMS & FASTag nodes.");
+      setTimeout(() => setSuccessToast(null), 4000);
+    } finally {
+      setIsTriggering(false);
+    }
+  };
 
   const handleIssueAdvisory = (stateName: string) => {
     setSuccessToast(`Union Ministerial Directive issued to Chief Secretary & Planning Department, Government of ${stateName}.`);
@@ -126,17 +146,22 @@ export const MoSPIDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* National Macro Outlay KPI Cards */}
+      {/* National Macro Outlay KPI Cards with Realtime Pulse */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <Card className="border border-slate-200 bg-white shadow-xs rounded-2xl">
+        <Card className="border border-slate-200 bg-white shadow-xs rounded-2xl relative overflow-hidden">
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Union Outlay</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Union Outlay</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Live Synced"></span>
+              </div>
               <span className="w-8 h-8 rounded-lg bg-blue-50 text-[#0B3C68] flex items-center justify-center font-bold">
                 <Database size={16} />
               </span>
             </div>
-            <div className="text-2xl font-black text-slate-900 tracking-tight">₹23,450.00 <span className="text-base font-bold text-slate-500">Cr</span></div>
+            <div className="text-2xl font-black text-slate-900 tracking-tight">
+              ₹{overviewStats ? (overviewStats.total_sanctioned / 10000000).toLocaleString('en-IN', { maximumFractionDigits: 1 }) : '23,450.00'} <span className="text-base font-bold text-slate-500">Cr</span>
+            </div>
             <p className="text-[11px] text-slate-500 mt-1 font-medium">543 Lok Sabha + 245 Rajya Sabha Seats</p>
           </CardContent>
         </Card>
@@ -144,14 +169,25 @@ export const MoSPIDashboard: React.FC = () => {
         <Card className="border border-slate-200 bg-white shadow-xs rounded-2xl">
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">PFMS Disbursal Rate</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">PFMS Disbursal Rate</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              </div>
               <span className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
                 <Activity size={16} />
               </span>
             </div>
-            <div className="text-2xl font-black text-slate-900 tracking-tight">71.8% <span className="text-sm font-semibold text-emerald-600">(₹16,842 Cr)</span></div>
+            <div className="text-2xl font-black text-slate-900 tracking-tight">
+              {overviewStats ? overviewStats.utilization_rate : 71.8}% 
+              <span className="text-sm font-semibold text-emerald-600 ml-1.5">
+                (₹{overviewStats ? (overviewStats.total_expenditure / 10000000).toLocaleString('en-IN', { maximumFractionDigits: 1 }) : '16,842'} Cr)
+              </span>
+            </div>
             <div className="w-full bg-slate-100 h-2 rounded-full mt-2.5 overflow-hidden">
-              <div className="bg-emerald-600 h-full rounded-full" style={{ width: '71.8%' }}></div>
+              <div 
+                className="bg-emerald-600 h-full rounded-full transition-all duration-500" 
+                style={{ width: `${overviewStats ? Math.min(overviewStats.utilization_rate, 100) : 71.8}%` }}
+              ></div>
             </div>
           </CardContent>
         </Card>
@@ -159,13 +195,18 @@ export const MoSPIDashboard: React.FC = () => {
         <Card className="border border-slate-200 bg-white shadow-xs rounded-2xl">
           <CardContent className="p-5">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Pan-India Works</span>
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Active Monitored Works</span>
               <span className="w-8 h-8 rounded-lg bg-slate-100 text-slate-800 flex items-center justify-center font-bold">
                 <Globe size={16} />
               </span>
             </div>
-            <div className="text-2xl font-black text-slate-900 tracking-tight">14,280 <span className="text-sm font-semibold text-slate-500">Projects</span></div>
-            <p className="text-[11px] text-slate-500 mt-1 font-medium">Across 36 States & Union Territories</p>
+            <div className="text-2xl font-black text-slate-900 tracking-tight">
+              {overviewStats ? overviewStats.active_works + overviewStats.completed_works + overviewStats.delayed_works : 14280} 
+              <span className="text-sm font-semibold text-slate-500 ml-1">Projects</span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1 font-medium">
+              {overviewStats ? `${overviewStats.active_works} in active progress • ${overviewStats.completed_works} completed` : 'Across 36 States & Union Territories'}
+            </p>
           </CardContent>
         </Card>
 
@@ -177,10 +218,104 @@ export const MoSPIDashboard: React.FC = () => {
                 <AlertTriangle size={16} />
               </span>
             </div>
-            <div className="text-2xl font-black text-amber-950 tracking-tight">48 <span className="text-sm font-semibold text-amber-800">Flagged Works</span></div>
-            <p className="text-[11px] text-amber-700 mt-1 font-medium">0.33% National Anomaly Frequency</p>
+            <div className="text-2xl font-black text-amber-950 tracking-tight">
+              {overviewStats ? overviewStats.high_risk_works : 48} 
+              <span className="text-sm font-semibold text-amber-800 ml-1">Flagged Works</span>
+            </div>
+            <p className="text-[11px] text-amber-700 mt-1 font-medium">Clause 14B Show-Cause Trigger Candidates</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Real-Time Pan-India Surveillance Ticker */}
+      <div className="bg-slate-950 text-white rounded-2xl p-5 border border-slate-800 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <Radio size={16} className="animate-pulse" />
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-black text-white tracking-wide">
+                  REAL-TIME TELEMETRY STREAM
+                </h3>
+                <span className="px-2 py-0.2 rounded text-[9px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  LIVE 24/7 RADAR
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Continuous audit packets incoming from NHAI FASTag Plazas, ISRO Cartosat-3 satellites & PFMS Central Core.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleSimulate}
+              disabled={isTriggering}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition-all cursor-pointer shadow-md disabled:opacity-50"
+              title="Trigger an immediate simulation packet"
+            >
+              <Zap size={13} className={isTriggering ? 'animate-spin' : 'fill-slate-950'} />
+              <span>{isTriggering ? 'Simulating...' : '⚡ Force Live Event'}</span>
+            </button>
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all cursor-pointer shadow-md"
+            >
+              <span>Full Radar Feed ({liveEvents.length})</span>
+              <ArrowUpRight size={13} />
+            </button>
+          </div>
+        </div>
+
+        {/* 3 Most Recent Live Event Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+          {liveEvents.slice(0, 3).map((evt, idx) => (
+            <div 
+              key={evt.id || idx}
+              className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition-all flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    {evt.type === 'FASTAG_TRANSIT' ? <Truck size={13} className="text-amber-400" /> :
+                     evt.type === 'SATELLITE_PASS' ? <Satellite size={13} className="text-cyan-400" /> :
+                     evt.type === 'PROGRESS_UPDATE' ? <TrendingUp size={13} className="text-emerald-400" /> :
+                     evt.type === 'DISBURSEMENT' ? <Activity size={13} className="text-blue-400" /> :
+                     <AlertTriangle size={13} className="text-red-400" />}
+                    <span className="text-[10px] font-black uppercase text-slate-300">
+                      {evt.type.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <span className="text-[9px] font-mono text-slate-500">
+                    {new Date(evt.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                </div>
+                <div className="text-xs font-bold text-white leading-tight line-clamp-1">
+                  {evt.title}
+                </div>
+                <p className="text-[10.5px] text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                  {evt.description}
+                </p>
+              </div>
+
+              {evt.work_id && (
+                <div className="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[9.5px]">
+                  <span className="text-slate-500">{evt.district || 'MPLADS Node'}</span>
+                  <Link 
+                    to={`/projects/${encodeURIComponent(evt.work_id)}`}
+                    className="text-blue-400 font-bold hover:underline flex items-center gap-0.5"
+                  >
+                    <span>{evt.work_id}</span>
+                    <ExternalLink size={9} />
+                  </Link>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Feature 1: Pan-India State Expenditure Efficiency League */}

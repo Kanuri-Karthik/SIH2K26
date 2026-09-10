@@ -20,6 +20,8 @@ import {
   X
 } from 'lucide-react';
 import { useRole, CONSTITUENCY_REGIONS, type ConstituencyRegion } from '../context/RoleContext';
+import { useRealtime } from '../context/RealtimeContext';
+import { Zap, Radio } from 'lucide-react';
 
 const INITIAL_WORKS = [
   // Telangana (Hyderabad - TG-HYD - Hon'ble MP Shri Asaduddin Owaisi)
@@ -471,8 +473,19 @@ const buildAllNationwideWorks = () => {
 
 export const ProjectExplorer: React.FC = () => {
   const { currentRole, currentProfile, activeRegion, switchRegion, allRegions } = useRole();
+  const { latestUpdatedWorks, recentlyUpdatedWorkIds, triggerLiveTick, setIsDrawerOpen, isConnected } = useRealtime();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const [isTriggering, setIsTriggering] = useState(false);
+
+  const handleSimulate = async () => {
+    setIsTriggering(true);
+    try {
+      await triggerLiveTick();
+    } finally {
+      setIsTriggering(false);
+    }
+  };
 
   const [works, setWorks] = useState<any[]>(() => buildAllNationwideWorks());
   const [searchTerm, setSearchTerm] = useState('');
@@ -519,6 +532,30 @@ export const ProjectExplorer: React.FC = () => {
         console.warn("Could not load /api/works/, using initial works:", err);
       });
   }, []);
+
+  // Real-time synchronization: merge live updates seamlessly into works state
+  useEffect(() => {
+    if (latestUpdatedWorks.size > 0) {
+      setWorks(prev => {
+        let changed = false;
+        const updated = prev.map(w => {
+          const live = latestUpdatedWorks.get(w.work_id);
+          if (live) {
+            changed = true;
+            return {
+              ...w,
+              physical_progress: live.physical_progress,
+              financial_progress: live.financial_progress,
+              actual_expenditure: live.actual_expenditure,
+              status: live.status
+            };
+          }
+          return w;
+        });
+        return changed ? updated : prev;
+      });
+    }
+  }, [latestUpdatedWorks]);
 
   const searchLower = searchTerm.toLowerCase().trim();
 
@@ -974,6 +1011,39 @@ export const ProjectExplorer: React.FC = () => {
         </div>
       )}
       
+      {/* Real-time Telemetry Status Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs">
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Real-time Telemetry Live</span>
+          </div>
+          <span className="text-xs text-slate-500 font-medium">
+            Active Works Stream automatically updates physical progress & FASTag verified logistics.
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleSimulate}
+            disabled={isTriggering}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+            title="Trigger an immediate live progress update"
+          >
+            <Zap size={13} className={isTriggering ? 'animate-spin' : 'fill-slate-950'} />
+            <span>{isTriggering ? 'Updating...' : '⚡ Force Live Tick'}</span>
+          </button>
+
+          <button
+            onClick={() => setIsDrawerOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all cursor-pointer shadow-2xs"
+          >
+            <Radio size={13} className="text-emerald-400 animate-pulse" />
+            <span>Live Radar Stream</span>
+          </button>
+        </div>
+      </div>
+
       {/* Table Card */}
       <Card className="border border-slate-200 shadow-xs rounded-2xl bg-white overflow-hidden">
         <CardContent className="p-0">
@@ -1007,14 +1077,25 @@ export const ProjectExplorer: React.FC = () => {
                   filteredWorks.map((work, idx) => (
                     <tr 
                       key={idx} 
-                      className={`hover:bg-blue-50/40 transition-colors group cursor-pointer ${
-                        work.work_id?.startsWith(activeRegion.code) ? 'bg-emerald-50/15' : ''
+                      className={`transition-all duration-300 group cursor-pointer ${
+                        recentlyUpdatedWorkIds.has(work.work_id) 
+                          ? 'bg-emerald-100/60 ring-2 ring-emerald-500 ring-inset animate-pulse' 
+                          : work.work_id?.startsWith(activeRegion.code) 
+                          ? 'bg-emerald-50/20 hover:bg-emerald-50/50' 
+                          : 'hover:bg-blue-50/40'
                       }`}
                       onClick={() => navigate(`/projects/${work.work_id}`)}
                     >
                       <td className="px-6 py-4">
-                        <div className="font-mono font-black text-slate-900 text-xs">
-                          {work.work_id}
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-black text-slate-900 text-xs">
+                            {work.work_id}
+                          </span>
+                          {recentlyUpdatedWorkIds.has(work.work_id) && (
+                            <span className="px-1.5 py-0.2 rounded text-[8px] font-black bg-emerald-600 text-white animate-bounce">
+                              ⚡ LIVE
+                            </span>
+                          )}
                         </div>
                         {work.work_id?.startsWith(activeRegion.code) && (
                           <span className="inline-block mt-0.5 px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 text-[9px] font-bold uppercase">
