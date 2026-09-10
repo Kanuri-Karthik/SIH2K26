@@ -12,17 +12,23 @@ import {
   CheckCircle2,
   Lock,
   ArrowDownToLine,
-  Globe
+  Globe,
+  Eye,
+  ShieldCheck
 } from 'lucide-react';
 import { useRole } from '../context/RoleContext';
+import { downloadOfficialDocument } from '../utils/governmentForms';
+import { GovernmentFormModal } from '../components/GovernmentFormModal';
 
 export const Reports: React.FC = () => {
   const { currentRole, currentProfile, activeRegion } = useRole();
   const [downloadToast, setDownloadToast] = useState<string | null>(null);
+  const [previewReportTitle, setPreviewReportTitle] = useState<string | null>(null);
 
   const triggerDownload = (reportName: string) => {
-    setDownloadToast(`Generating and downloading signed copy of "${reportName}"...`);
-    setTimeout(() => setDownloadToast(null), 3500);
+    downloadOfficialDocument(reportName, activeRegion);
+    setDownloadToast(`Official signed copy of "${reportName}" downloaded & printable PDF opened.`);
+    setTimeout(() => setDownloadToast(null), 4000);
   };
 
   const getRoleReports = () => {
@@ -206,10 +212,20 @@ export const Reports: React.FC = () => {
               </p>
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-[10px] font-mono text-slate-400">Format: PDF / A-1a</span>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setPreviewReportTitle(rep.title)}
+                    className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer border border-slate-300"
+                    title="Preview official Government of India form"
+                  >
+                    <Eye size={13} />
+                    <span>Preview</span>
+                  </button>
+
                   <button 
                     onClick={() => triggerDownload(rep.title)}
                     className="flex items-center gap-1.5 bg-blue-700 hover:bg-blue-800 text-white px-3.5 py-2 rounded-lg text-xs font-bold transition-all btn-press cursor-pointer shadow-2xs"
+                    title="Download authentic signed Government of India document"
                   >
                     <ArrowDownToLine size={13} />
                     <span>Download Signed Copy</span>
@@ -220,6 +236,16 @@ export const Reports: React.FC = () => {
           </Card>
         ))}
       </div>
+
+      {/* Official Government Form Interactive Preview & Print Modal */}
+      {previewReportTitle && (
+        <GovernmentFormModal
+          isOpen={!!previewReportTitle}
+          reportTitle={previewReportTitle}
+          region={activeRegion}
+          onClose={() => setPreviewReportTitle(null)}
+        />
+      )}
     </div>
   );
 };
